@@ -1,0 +1,134 @@
+#!/usr/bin/perl
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+sub smart_discovery {
+$first = 1;
+print "{\n";
+print "\t\"data\":[\n\n";
+$list="";
+for (`smartctl --scan`) {
+$smart_enabled=1;
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -i $disk`;
+if (not (grep{/Raid/} @smartdata)& not ((grep{/QEMU/} @smartdata))&not (grep{/Red Hat/} @smartdata)&not(grep{/Adaptec/} @smartdata) ){
+$serial=(grep{/Serial/} @smartdata)[0];
+chomp($serial);
+$serial=~ s/ //g;
+$serial=substr($serial, index($serial, ":")+1,length($serial));
+$model=(grep{/Device Model/} @smartdata)[0];
+$model=~ s/     //g;
+chomp($model);
+$model=substr($model, index($model, ":")+1,length($model));
+if (index($list,$serial) <0) {
+    print "\t,\n" if not $first;
+    print "\t{\n";
+    print "\t\t\"{#DISK_MODEL}\":\"$model\",\n";
+    print "\t\t\"{#DISK_SERIAL}\":\"$serial\",\n";
+    print "\t\t\"{#SMART_ENABLED}\":\"$smart_enabled\"\n";
+    print "\t}\n";
+$list=$list." ".$serial;
+#exit; 
+$first = 0;
+#print $list;
+}
+}
+}
+print "\n\t]\n";
+print "}\n";
+};
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+sub smart_self_test_ok  {
+for (`smartctl --scan`) {
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -i $disk`;
+if (grep{/@_/} @smartdata){
+@smartdata = `smartctl -a $disk`;
+$passed=(grep{/SMART overall-health self-assessment test result: PASSED/} @smartdata);
+print $passed;
+exit;
+}}};
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+sub smart_disk_access  {
+for (`smartctl --scan`) {
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -i $disk`;
+if (grep{/@_/} @smartdata){
+print "1";
+exit;
+}}
+print "0";
+};
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+sub smart_raw  {
+for (`smartctl --scan`) {
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -i $disk`;
+if (grep{/@_[0]/} @smartdata){
+@data=grep{/@_[1]/} `smartctl -A $disk`;
+$raw_data=(@data[0] =~ /\b([0-9]+)\b/g)[4];
+print $raw_data;
+exit;
+}}
+print "0";
+};
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+sub smart_errors  {
+for (`smartctl --scan`) {
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -a $disk`;
+if (grep{/@_[0]/} @smartdata){
+$data=grep{/occurred at/} @smartdata;
+print $data;
+exit;
+$errors=(@data[0] =~ /\b([0-9]+)\b/g)[0];
+print $errors;
+exit;
+}}
+print "0";
+};
+
+
+
+$param=@ARGV[0];
+if ( $param eq "smart_discovery" )	{smart_discovery();exit 0;}
+if ( $param eq "smart_self_test_ok" )	{smart_self_test_ok(@ARGV[1]);exit 0;}
+if ( $param eq "smart_disk_access" )	{smart_disk_access(@ARGV[1]);exit 0;}
+if ( $param eq "smart_raw" )		{smart_raw(@ARGV[1],@ARGV[2]);exit 0;}
+if ( $param eq "smart_errors" )		{smart_errors(@ARGV[1]);exit 0;}
+if ( $param eq "smart_version" )	{print "1";exit 0;}
+
+exit;
+
+
+#https://github.com/paultrost/Disk-SMART-Perl/blob/master/lib/Disk/SMART.pm
+
+
