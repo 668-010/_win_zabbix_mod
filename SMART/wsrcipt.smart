@@ -15,7 +15,11 @@ for (`smartctl --scan`) {
 $smart_enabled=1;
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
-if (not (grep{/Raid/} @smartdata)& not ((grep{/QEMU/} @smartdata))&not (grep{/Red Hat/} @smartdata)&not(grep{/Adaptec/} @smartdata) ){
+if (not (grep{/Virtual/} @smartdata)& not (grep{/Raid/} @smartdata)& not ((grep{/QEMU/} @smartdata))&not (grep{/Red Hat/} @smartdata)&not(grep{/Adaptec/} @smartdata) ){
+
+if (grep {/SMART support is:     Disabled/} @smartdata){
+`smartctl -i $disk -s on -o on -S on`;
+}
 $serial=(grep{/Serial/} @smartdata)[0];
 chomp($serial);
 $serial=~ s/ //g;
@@ -23,6 +27,11 @@ $serial=substr($serial, index($serial, ":")+1,length($serial));
 $model=(grep{/Device Model/} @smartdata)[0];
 $model=~ s/     //g;
 chomp($model);
+if ($model eq "" ){
+$model=(grep{/Product:/} @smartdata)[0];
+$model=~ s/              //g;
+chomp $model;
+}
 $model=substr($model, index($model, ":")+1,length($model));
 if (index($list,$serial) <0) {
     print "\t,\n" if not $first;
@@ -32,9 +41,7 @@ if (index($list,$serial) <0) {
     print "\t\t\"{#SMART_ENABLED}\":\"$smart_enabled\"\n";
     print "\t}\n";
 $list=$list." ".$serial;
-#exit; 
 $first = 0;
-#print $list;
 }
 }
 }
@@ -138,7 +145,7 @@ if ( $param eq "smart_disk_access" )	{smart_disk_access(@ARGV[1]);exit 0;}
 if ( $param eq "smart_raw" )		{smart_raw(@ARGV[1],@ARGV[2]);exit 0;}
 if ( $param eq "smart_getmodel" )	{smart_getmodel(@ARGV[1]);exit 0;}
 if ( $param eq "smart_errors" )		{smart_errors(@ARGV[1]);exit 0;}
-if ( $param eq "smart_version" )	{print "2";exit 0;}
+if ( $param eq "smart_version" )	{print "3";exit 0;}
 
 print "error?";
 exit;
