@@ -116,6 +116,19 @@ exit;
 print "0";
 };
 
+sub smart_getmodel  {
+for (`smartctl --scan`) {
+$disk =substr($_, 0, index($_, " ") );
+@smartdata = `smartctl -i $disk`;
+if (grep{/@_[0]/} @smartdata){
+$model=(grep{/Device Model/} @smartdata)[0];
+$model=~ s/     //g;
+chomp($model);
+$model=substr($model, index($model, ":")+1,length($model));
+print $model;
+exit;
+}}
+};
 
 
 $param=@ARGV[0];
@@ -123,9 +136,11 @@ if ( $param eq "smart_discovery" )	{smart_discovery();exit 0;}
 if ( $param eq "smart_self_test_ok" )	{smart_self_test_ok(@ARGV[1]);exit 0;}
 if ( $param eq "smart_disk_access" )	{smart_disk_access(@ARGV[1]);exit 0;}
 if ( $param eq "smart_raw" )		{smart_raw(@ARGV[1],@ARGV[2]);exit 0;}
+if ( $param eq "smart_getmodel" )	{smart_getmodel(@ARGV[1]);exit 0;}
 if ( $param eq "smart_errors" )		{smart_errors(@ARGV[1]);exit 0;}
-if ( $param eq "smart_version" )	{print "1";exit 0;}
+if ( $param eq "smart_version" )	{print "2";exit 0;}
 
+print "error?";
 exit;
 
 
