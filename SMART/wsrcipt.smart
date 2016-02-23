@@ -8,6 +8,7 @@
 
 sub smart_discovery {
 $first = 1;
+$adaptec = 0;
 $isWindows=`echo %OS%` eq "Windows_NT\n";
 
 if ($isWindows) {
@@ -31,12 +32,13 @@ $disk ="/dev/".$_;
 }
 
 
-
-
 @smartdata = `smartctl -i $disk`;
 if ((grep{/QEMU/} @smartdata)or (grep{/Red Hat/} @smartdata) ){
 last;
 }
+
+if (grep{/Adaptec/} @smartdata) {$adaptec = 1;$adaptecdisk=$disk;}
+
 if (not (grep{/RAID/} @smartdata)&not (grep{/Promise/} @smartdata)&not (grep{/DVD/} @smartdata)&not (grep{/Virtual/} @smartdata)& not (grep{/Raid/} @smartdata)& not(grep{/Adaptec/} @smartdata) ){
 
 if (grep {/SMART support is:     Disabled/} @smartdata){
@@ -67,6 +69,45 @@ $first = 0;
 }
 }
 }
+
+if (($adaptec=1) & ($isWindows=1)) {
+for ($i = 0; $i <=7; $i++){
+$smart_enabled=1;
+@smartdata = `smartctl64 -d sat,auto+aacraid,0,0,$i -i $disk`;
+
+if (grep{/=== START OF/} @smartdata) {
+if (grep {/SMART support is:     Disabled/} @smartdata){
+`smartctl64 -d sat,auto+aacraid,0,0,$i -i $disk -s on -o on -S on`;
+}
+
+$serial=(grep{/Serial/} @smartdata)[0];
+chomp($serial);
+$serial=~ s/ //g;
+$serial=substr($serial, index($serial, ":")+1,length($serial));
+$model=(grep{/Device Model/} @smartdata)[0];
+$model=~ s/     //g;
+chomp($model);
+if ($model eq "" ){
+$model=(grep{/Product:/} @smartdata)[0];
+$model=~ s/              //g;
+chomp $model;
+}
+$model=substr($model, index($model, ":")+1,length($model));
+if (index($list,$serial) <0) {
+    print "\t,\n" if not $first;
+    print "\t{\n";
+    print "\t\t\"{#DISK_MODEL}\":\"$model\",\n";
+    print "\t\t\"{#DISK_SERIAL}\":\"$serial\",\n";
+    print "\t\t\"{#SMART_ENABLED}\":\"$smart_enabled\"\n";
+    print "\t}\n";
+$list=$list." ".$serial;
+$first = 0;
+}
+}
+
+}
+
+};
 print "\n\t]\n";
 print "}\n";
 };
@@ -78,15 +119,45 @@ print "}\n";
 ########################################################################################
 
 sub smart_self_test_ok  {
-for (`smartctl --scan`) {
-$disk =substr($_, 0, index($_, " ") );
-@smartdata = `smartctl -i $disk`;
-if (grep{/@_/} @smartdata){
-@smartdata = `smartctl -a $disk`;
-$passed=(grep{/SMART overall-health self-assessment test result: PASSED/} @smartdata);
-print $passed;
-exit;
-}}};
+
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
+for (`$scancommand`) {
+	$disk =substr($_, 0, index($_, " ") );
+	@smartdata = `smartctl -i $disk`;
+	if (grep{/Adaptec/} @smartdata) {$adaptec = 1;$adaptecdisk=$disk;}
+	if (grep{/@_/} @smartdata){
+		@smartdata = `smartctl -a $disk`;
+		$passed=(grep{/SMART overall-health self-assessment test result: PASSED/} @smartdata);
+		print $passed;
+		exit;
+	}
+}
+
+if (($adaptec=1) & ($isWindows=1)) {
+for ($i = 0; $i <=7; $i++){
+
+@smartdata = `smartctl64 -d sat,auto+aacraid,0,0,$i -i $disk`;
+
+if (grep{/=== START OF/} @smartdata) {
+
+	if (grep{/@_/} @smartdata){
+		@smartdata = `smartctl64 -d sat,auto+aacraid,0,0,$i -a $disk`;
+		$passed=(grep{/SMART Health Status: OK/} @smartdata);
+		print $passed;
+		exit;
+	}
+
+}
+}
+};
+};
 
 ########################################################################################
 #
@@ -95,7 +166,15 @@ exit;
 ########################################################################################
 
 sub smart_disk_access  {
-for (`smartctl --scan`) {
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
+for (`$scancommand`) {
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
 if (grep{/@_/} @smartdata){
@@ -112,7 +191,16 @@ print "0";
 ########################################################################################
 
 sub smart_raw  {
-for (`smartctl --scan`) {
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
+for (`$scancommand`) {
+
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
 if (grep{/@_[0]/} @smartdata){
@@ -131,7 +219,16 @@ print "0";
 ########################################################################################
 
 sub smart_errors  {
-for (`smartctl --scan`) {
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
+for (`$scancommand`) {
+
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -a $disk`;
 if (grep{/@_[0]/} @smartdata){
@@ -145,8 +242,24 @@ exit;
 print "0";
 };
 
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
 sub smart_getmodel  {
-for (`smartctl --scan`) {
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
+for (`$scancommand`) {
+
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
 if (grep{/@_[0]/} @smartdata){
@@ -159,6 +272,11 @@ exit;
 }}
 };
 
+########################################################################################
+#
+#
+#
+########################################################################################
 
 $param=@ARGV[0];
 if ( $param eq "smart_discovery" )	{smart_discovery();exit 0;}
