@@ -8,14 +8,36 @@
 
 sub smart_discovery {
 $first = 1;
+$isWindows=`echo %OS%` eq "Windows_NT\n";
+
+if ($isWindows) {
+$scancommand="smartctl --scan";
+} else
+{
+$scancommand="ls /dev/ |grep  -i -E '^(sg)'";
+}
+
 print "{\n";
 print "\t\"data\":[\n\n";
 $list="";
-for (`smartctl --scan`) {
+for (`$scancommand`) {
 $smart_enabled=1;
+
+if ($isWindows) {
 $disk =substr($_, 0, index($_, " ") );
+} else
+{
+$disk ="/dev/".$_;
+}
+
+
+
+
 @smartdata = `smartctl -i $disk`;
-if (not (grep{/RAID/} @smartdata)&not (grep{/Promise/} @smartdata)&not (grep{/DVD/} @smartdata)&not (grep{/Virtual/} @smartdata)& not (grep{/Raid/} @smartdata)& not ((grep{/QEMU/} @smartdata))&not (grep{/Red Hat/} @smartdata)&not(grep{/Adaptec/} @smartdata) ){
+if ((grep{/QEMU/} @smartdata)or (grep{/Red Hat/} @smartdata) ){
+last;
+}
+if (not (grep{/RAID/} @smartdata)&not (grep{/Promise/} @smartdata)&not (grep{/DVD/} @smartdata)&not (grep{/Virtual/} @smartdata)& not (grep{/Raid/} @smartdata)& not(grep{/Adaptec/} @smartdata) ){
 
 if (grep {/SMART support is:     Disabled/} @smartdata){
 `smartctl -i $disk -s on -o on -S on`;
@@ -145,7 +167,7 @@ if ( $param eq "smart_disk_access" )	{smart_disk_access(@ARGV[1]);exit 0;}
 if ( $param eq "smart_raw" )		{smart_raw(@ARGV[1],@ARGV[2]);exit 0;}
 if ( $param eq "smart_getmodel" )	{smart_getmodel(@ARGV[1]);exit 0;}
 if ( $param eq "smart_errors" )		{smart_errors(@ARGV[1]);exit 0;}
-if ( $param eq "smart_version" )	{print "4";exit 0;}
+if ( $param eq "smart_version" )	{print "5";exit 0;}
 
 print "error?";
 exit;
