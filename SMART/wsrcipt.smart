@@ -177,6 +177,7 @@ $scancommand="ls /dev/ |grep  -i -E '^(sg)'";
 for (`$scancommand`) {
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
+if (grep{/Adaptec/} @smartdata) {$adaptec = 1;$adaptecdisk=$disk;}
 if (grep{/@_/} @smartdata){
 print "1";
 exit;
@@ -280,6 +281,7 @@ for (`$scancommand`) {
 
 $disk =substr($_, 0, index($_, " ") );
 @smartdata = `smartctl -i $disk`;
+if (grep{/Adaptec/} @smartdata) {$adaptec = 1;$adaptecdisk=$disk;}
 if (grep{/@_[0]/} @smartdata){
 $model=(grep{/Device Model/} @smartdata)[0];
 $model=~ s/     //g;
@@ -288,6 +290,33 @@ $model=substr($model, index($model, ":")+1,length($model));
 print $model;
 exit;
 }}
+
+
+if (($adaptec=1) & ($isWindows=1)) {
+for ($i = 0; $i <=7; $i++){
+
+@smartdata = `smartctl64 -d sat,auto+aacraid,0,0,$i -i $disk`;
+
+if (grep{/@_[0]/} @smartdata){
+$model=(grep{/Device Model/} @smartdata)[0];
+$model=~ s/     //g;
+chomp($model);
+
+if ($model eq "" ){
+$model=(grep{/Product:/} @smartdata)[0];
+$model=~ s/              //g;
+chomp $model;
+}
+$model=substr($model, index($model, ":")+1,length($model));
+
+
+print $model;
+
+exit;
+}
+}
+};
+
 };
 
 ########################################################################################
