@@ -181,6 +181,24 @@ if (grep{/@_/} @smartdata){
 print "1";
 exit;
 }}
+
+
+if (($adaptec=1) & ($isWindows=1)) {
+for ($i = 0; $i <=7; $i++){
+
+@smartdata = `smartctl64 -d sat,auto+aacraid,0,0,$i -i $disk`;
+
+
+	if (grep{/@_/} @smartdata){
+		print "1";
+		exit;
+	}
+
+
+}
+};
+
+
 print "0";
 };
 
