@@ -15,7 +15,7 @@
 # REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v "AUoptions"
 #
 # Пример USREPARAMETRS:
-# UserParameter=regquery.[*],	C:\zabbix-agent\_win_zabbix_mod\shell\perl.bat   C:\zabbix-agent\_win_zabbix_mod\regquery\regquery.perl "$1" "$2"
+# UserParameter=regquery[*],	C:\zabbix-agent\_win_zabbix_mod\shell\perl.bat   C:\zabbix-agent\_win_zabbix_mod\regquery\regquery.perl "$1" "$2"
 #
 #######
 
