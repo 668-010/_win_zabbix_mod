@@ -1,0 +1,1 @@
+ps | sort -desc WS | select -first 10;
